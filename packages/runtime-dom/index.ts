@@ -1,12 +1,15 @@
-import { createAppAPI, createRenderer } from "../runtime-core";
-import { CreateAppFunciton } from "../runtime-core/apiCreateApp";
+import {
+  type CreateAppFunction,
+  createAppAPI,
+  createRenderer,
+} from "../runtime-core";
 import { nodeOps } from "./nodeOps";
 
 const { render } = createRenderer(nodeOps);
 
 const _createApp = createAppAPI(render);
 
-export const createApp = ((...args) => {
+export const createApp = ((...args: any) => {
   const app = _createApp(...args);
   const { mount } = app;
   app.mount = (selector: string) => {
@@ -16,4 +19,4 @@ export const createApp = ((...args) => {
   };
 
   return app;
-}) as CreateAppFunciton<Element>;
+}) as CreateAppFunction<Element>;
