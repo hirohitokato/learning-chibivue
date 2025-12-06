@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "es2022",
+    "lib": ["DOM", "ES2024"],
+    "strict": true,
+    "paths": {
+      "chibivue": ["./packages"]
+    },
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "esModuleInterop": true
+  },
+  "include": ["packages/**/*.ts", "examples/**/**.ts"],
+  "exclude": ["node_modules", "dist"]
+}
