@@ -2,43 +2,44 @@
 
 ## 概要
 
-`runtime-dom` はブラウザ上で動作するための具象プラットフォーム実装を提供します。`runtime-core` が定義するレンダラ抽象（ノードの生成、属性更新、イベント登録、ノード差し替え等）を DOM API で満たす役割を持ちます。
+`runtime-dom` はブラウザ（DOM）向けの具象実装をまとめたパッケージです。`runtime-core` のレンダラ抽象を満たすために、低レベルのノード操作（`nodeOps`）とプロパティ差分適用関数（`patchProp`）を提供します。
 
-## 責務
+## 主な責務
 
-- HTML DOM ノードの作成・破棄
-- 属性／プロパティの差し替え・更新
-- イベントリスナーの登録・解除
-- テキストノード／コメントノードの管理
-- プラットフォーム固有の最適化（バブリング最適化、イベントハンドリングの委譲など）
+- DOM ノードの生成・挿入・削除（`createElement`, `createText`, `insert`, `setElementText`）
+- 属性・プロパティの設定や削除（`patchProp` 経由で `modules/attrs.ts` を使用）
+- イベントリスナーの登録と更新（`modules/events.ts` を使用して冪等に管理）
+- テキストノードやコメントノードの管理
 
-## 主な実装ファイル
+## 主要ファイル（参照）
 
-- `index.ts`: runtime-dom のエントリ。`runtime-core` のレンダラ抽象に具象実装を渡してレンダラを生成するコードが置かれる。
-- `nodeOps.ts`: DOM 上の低レベル操作（createElement, insert, remove, setAttribute など）を集約したモジュール。
+- `index.ts` — `createRenderer({ ...nodeOps, patchProp })` を呼び出してレンダラを組み立て、`createApp` をエクスポートします。
+- `nodeOps.ts` — DOM の低レベル操作（実際は `Omit<RendererOptions, 'patchProp'>` 型で宣言）
+- `patchProp.ts` — `RendererOptions['patchProp']` と互換のある関数。内部で `modules/attrs.ts` と `modules/events.ts` を使って属性／イベントを分けて処理します。
+- `modules/attrs.ts`, `modules/events.ts` — 属性更新とイベント管理の補助モジュール。
 
-## core との接続方法（高レベル）
+## core との接続（高レベル）
 
-1. `runtime-dom` は `nodeOps` や `patchProp` のような関数を提供する。
-2. これらを `runtime-core` のレンダラ生成ロジックに渡すことで、コアの `render` / `patch` が DOM に反映される。
+1. `runtime-dom` は `nodeOps`（ノード操作群）と `patchProp` を実装する。
+2. `runtime-dom/index.ts` で `createRenderer({ ...nodeOps, patchProp })` として渡すと、`runtime-core` の `createRenderer` が DOM と連携したレンダラを作成します。
 
-簡易的な例（擬似コード）:
+簡易的な接続例（実際は `runtime-dom/index.ts` を参照してください）:
 
 ```ts
-// runtime-dom/index.ts
 import { createRenderer } from "../runtime-core";
-import { nodeOps, patchProp } from "./nodeOps";
+import { nodeOps } from "./nodeOps";
+import { patchProp } from "./patchProp";
 
-const renderer = createRenderer({ nodeOps, patchProp });
-export const createApp = (rootComponent) => renderer.createApp(rootComponent);
+const { render } = createRenderer({ ...nodeOps, patchProp });
 ```
 
-## 注意点・開発メモ
+## 実装上の注意点
 
-- DOM 実装はブラウザ固有の挙動やエッジケース（例: 属性とプロパティの違い、SVG の扱い等）に注意する。
-- イベント登録はデリゲーション（委譲）でまとめるとパフォーマンス上有利になる場合がある。
-- 新しい DOM 機能を使うときは `runtime-core` の期待するインターフェースに影響がないか確認する。
+- `patchProp` は `onClick` のようなイベントハンドラ名を判別して `modules/events.ts` を使います（`isOn` の正規表現に基づく）。
+- `modules/events.ts` は要素ごとに invoker を保持して、イベントの再登録を避ける工夫をしています（`_vei` フィールド）。
+- SVG や属性/プロパティの違いなど、DOM の細かい挙動はここで扱う必要があります。
 
-```
+## 開発者向けメモ
 
-```
+- 新しい機能を追加するときは、まず `runtime-core/renderer.ts` の `RendererOptions` の契約を確認してください。
+- `nodeOps` は `Omit<RendererOptions, 'patchProp'>` 型で定義されているため、`patchProp` は別ファイルで実装してから `createRenderer` に合成してください。
