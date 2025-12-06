@@ -2,25 +2,32 @@
 
 このリポジトリは小さなランタイム実装を複数パッケージに分割して持つ構成です。各パッケージは責務を明確に分離し、単体でテストしやすく、異なるプラットフォーム（ブラウザ・ネイティブ等）へ容易に差し替えられることを目指しています。
 
-**主要パッケージ**
+## 主要パッケージ
 
 - `runtime-core`: ランタイムのコアロジック（リアクティブ、コンポーネントのライフサイクル、仮想ノードのパッチ処理の抽象インターフェース等）を持ち、プラットフォームに依存しない純粋な実装を提供します。
 - `runtime-dom`: ブラウザ（DOM）向けの具象実装を収めます。`runtime-core` が期待するプラットフォーム API（ノード作成、属性更新、イベント登録など）を実際の DOM 操作で満たします。
+- `reactivity`: オブジェクトを Proxy でラップして読み書きを傍受し、依存収集（track）／通知（trigger）により副作用（effect）を自動的に再実行するリアクティブシステムを提供します。
+- `runtime-core`: ランタイムのコアロジック（コンポーネントのライフサイクル、VNode、レンダラ抽象など）を持ち、プラットフォームに依存しない純粋な実装を提供します。
+- `runtime-dom`: ブラウザ（DOM）向けの具象実装を収めます。`runtime-core` が期待するプラットフォーム API（ノード作成、属性更新、イベント登録など）を実際の DOM 操作で満たします。
 
-**設計方針（要点）**
+## 設計方針（要点）
 
 - 単一責任: 各パッケージは明確な責務を持ち、役割が混ざらないようにする。
 - 分離と抽象化: `runtime-core` はプラットフォームに依存しない抽象面のみを公開し、`runtime-dom` はその抽象を具体化する形で実装する。
 - 小さな API 面: コアはできるだけ小さい公開 API を持ち、実装の入れ替えを容易にする。
 - テスト可能性: 各パッケージはユニットテストで独立して検証できることを重視する。
 
-**相互関係（高レベル）**
+## 相互関係（高レベル）
 
 - `runtime-core` はランタイムのアルゴリズム（レンダリングフロー、差分アルゴリズム、リアクティブ更新キューなど）を提供し、具体的な DOM 操作は抽象化されたインターフェースを通じて呼び出します。
 - `runtime-dom` はそのインターフェースを実際の DOM API（`document.createElement`、`node.appendChild` など）で実装し、ブラウザ上で動作するランタイムを構成します。
 
-**参照（主なファイル）**
+## 参照（主なファイル）
 
+- コアのエントリ: `packages/runtime-core/index.ts`
+- DOM 実装: `packages/runtime-dom/index.ts`, `packages/runtime-dom/nodeOps.ts`
+- createApp と renderer 実装の橋渡し: `packages/runtime-core/apiCreateApp.ts`
+- リアクティブ実装: `packages/reactivity/index.ts`, `packages/reactivity/reactive.ts`, `packages/reactivity/baseHandler.ts`, `packages/reactivity/effect.ts`
 - コアのエントリ: `packages/runtime-core/index.ts`
 - DOM 実装: `packages/runtime-dom/index.ts`, `packages/runtime-dom/nodeOps.ts`
 - createApp と renderer 実装の橋渡し: `packages/runtime-core/apiCreateApp.ts`

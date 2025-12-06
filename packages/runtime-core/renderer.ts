@@ -55,6 +55,7 @@ export function createRenderer(options: RendererOptions) {
   }
 
   const render: RootRndererFunction = (message, container) => {
+    while (container.firstChild) container.removeChild(container.firstChild); // 全消し
     const el = renderVnode(message);
     hostInsert(el, container);
   };
