@@ -1,7 +1,12 @@
 import { normalize } from "path";
-import { normalizeVNode, Text, VNode } from "./vnode";
+import { createVNode, normalizeVNode, Text, VNode } from "./vnode";
 import { ReactiveEffect } from "../reactivity/effect";
-import { Component } from "./component";
+import {
+  Component,
+  ComponentInternalInstance,
+  createComponentInstance,
+  InternalRenderFunction,
+} from "./component";
 
 export type RootRndererFunction<HostElement = RendererElement> = (
   vnode: Component,
@@ -12,6 +17,9 @@ export interface RendererOptions<
   HostNode = RendererNode,
   HostElement = RendererElement
 > {
+  /// patchProp はホスト環境に依存したノードのプロパティを更新するための関数
+  patchProp(el: HostElement, key: string, value: any): void;
+
   /// createElement はホスト環境に依存した要素ノードを生成するための関数
   createElement(type: string): HostNode;
   /// createText はホスト環境に依存したテキストノードを生成するための関数
@@ -22,9 +30,8 @@ export interface RendererOptions<
   setElementText(node: HostNode, text: string): void;
   /// insert はホスト環境に依存したノードを親ノードに挿入するための関数
   insert(child: HostNode, parent: HostNode, anchor?: HostNode): void;
-
-  /// patchProp はホスト環境に依存したノードのプロパティを更新するための関数
-  patchProp(el: HostElement, key: string, value: any): void;
+  /// parentNode はホスト環境に依存したノードの親ノードを取得するための関数
+  parentNode(node: HostNode): HostNode | null;
 }
 
 // Renderer で扱うノードの型定義。DOM に依存しないように抽象化している。
@@ -42,14 +49,31 @@ export function createRenderer(options: RendererOptions) {
     createText: hostCreateText,
     setText: hostSetText,
     insert: hostInsert,
+    parentNode: hostParentNode,
   } = options;
 
   const patch = (n1: VNode | null, n2: VNode, container: RendererElement) => {
     const { type } = n2;
     if (type === Text) {
       processText(n1, n2, container);
-    } else {
+    } else if (typeof type === "string") {
       processElement(n1, n2, container);
+    } else if (typeof type === "object") {
+      processComponent(n1, n2, container);
+    } else {
+      // do nothing
+    }
+  };
+
+  const processComponent = (
+    n1: VNode | null,
+    n2: VNode,
+    container: RendererElement
+  ) => {
+    if (n1 === null) {
+      mountComponent(n2, container);
+    } else {
+      updateComponent(n1, n2);
     }
   };
 
@@ -126,19 +150,70 @@ export function createRenderer(options: RendererOptions) {
     }
   };
 
-  const render: RootRndererFunction = (rootComponent, container) => {
-    const componentRender = rootComponent.setup!();
+  const mountComponent = (initialVNode: VNode, container: RendererElement) => {
+    const instance: ComponentInternalInstance = (initialVNode.component =
+      createComponentInstance(initialVNode));
 
-    let n1: VNode | null = null;
+    // setup component
+    const component = initialVNode.type as Component;
+    if (component.setup) {
+      instance.render = component.setup() as InternalRenderFunction;
+    }
 
-    const updateComponent = () => {
-      const n2 = componentRender();
-      patch(n1, n2, container);
-      n1 = n2;
+    // setup effect
+    setupRenderEffect(instance, initialVNode, container);
+  };
+
+  const setupRenderEffect = (
+    instance: ComponentInternalInstance,
+    initialVNode: VNode,
+    container: RendererElement
+  ) => {
+    const componentUpdateFn = () => {
+      const { render } = instance;
+
+      if (!instance.isMounted) {
+        // mount process
+        const subTree = (instance.subTree = normalizeVNode(render()));
+        patch(null, subTree, container);
+        initialVNode.el = subTree.el;
+        instance.isMounted = true;
+      } else {
+        // patch process
+        let { next, vnode } = instance;
+
+        if (next) {
+          next.el = vnode.el;
+          next.component = instance;
+          instance.vnode = next;
+          instance.next = null;
+        } else {
+          next = vnode;
+        }
+
+        const prevTree = instance.subTree;
+        const nextTree = normalizeVNode(render());
+        instance.subTree = nextTree;
+
+        patch(prevTree, nextTree, hostParentNode(prevTree.el!)!); // ※ 1
+        next.el = nextTree.el;
+      }
     };
 
-    const effect = new ReactiveEffect(updateComponent);
-    effect.run();
+    const effect = (instance.effect = new ReactiveEffect(componentUpdateFn));
+    const update = (instance.update = () => effect.run()); // instance.updateに登録
+    update();
+  };
+
+  const updateComponent = (n1: VNode, n2: VNode) => {
+    const instance = (n2.component = n1.component!);
+    instance.next = n2;
+    instance.update();
+  };
+
+  const render: RootRndererFunction = (rootComponent, container) => {
+    const vnode = createVNode(rootComponent, {}, []);
+    patch(null, vnode, container);
   };
 
   return { render };

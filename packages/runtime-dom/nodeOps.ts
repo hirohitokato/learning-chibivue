@@ -3,6 +3,8 @@ import { RendererOptions } from "../runtime-core";
 export const nodeOps: Omit<RendererOptions<Node, Element>, "patchProp"> = {
   // メモ: Omitとは、型から特定のプロパティを除外するユーティリティ型
   // patchPropは意図的に別ファイルで実装しているため、ここでは除外している
+  parentNode: (node: Node) => node.parentNode,
+
   createElement: (type: string): Node => {
     return document.createElement(type);
   },
