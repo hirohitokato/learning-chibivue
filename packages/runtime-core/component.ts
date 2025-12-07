@@ -1,9 +1,10 @@
 import { ReactiveEffect } from "../reactivity/effect";
 import type { ComponentOptions } from "./componentOptions";
-import { RendererElement } from "./renderer";
-import { normalizeVNode, VNode, VNodeChild } from "./vnode";
+import { Props } from "./componentProps";
+import { VNode, VNodeChild } from "./vnode";
 
 export type Component = ComponentOptions;
+export type Data = Record<string, unknown>;
 
 export interface ComponentInternalInstance {
   type: Component; // 元となるユーザー定義のコンポーネント(旧 rootComponent (実際にはルートコンポーネントだけじゃないけど))
@@ -14,6 +15,9 @@ export interface ComponentInternalInstance {
   render: InternalRenderFunction; // コンポーネントのレンダリング関数.旧componentRender
   update: () => void; // コンポーネントの更新関数。旧updateComponent
   isMounted: boolean; // マウント済みかどうかのフラグ
+
+  propsOptions: Props;
+  props: Data;
 }
 
 export type InternalRenderFunction = {
@@ -36,6 +40,8 @@ export function createComponentInstance(
     update: null!,
     subTree: null!,
     isMounted: false,
+    propsOptions: type.props as Props,
+    props: {},
   };
 
   return instance;
