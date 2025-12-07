@@ -21,8 +21,14 @@ const CounterComponent = {
 
 const MyComponent = {
   props: { someMessage: { type: String } },
-  setup(props: { someMessage: string }) {
-    return () => h("div", {}, [`Message: ${props.someMessage}`]);
+  setup(props: { someMessage: string }, { emit }: any) {
+    return () =>
+      h("div", {}, [
+        h("p", {}, [`Message: ${props.someMessage}`]),
+        h("button", { onClick: () => emit("click:change-message") }, [
+          "Change Message",
+        ]),
+      ]);
   },
 };
 
@@ -38,9 +44,15 @@ const app = createApp({
         h("p", { style: "color: red; font-weight: bold;" }, [
           "Hello, ChibiVue World!",
         ]),
-        h(MyComponent, { "some-message": state.message }, []),
+        h(
+          MyComponent,
+          {
+            "some-message": state.message,
+            "onClick:change-message": changeMessage,
+          },
+          []
+        ),
         h(CounterComponent, {}, []),
-        h("button", { onClick: changeMessage }, ["Change Message"]),
       ]);
     };
   },

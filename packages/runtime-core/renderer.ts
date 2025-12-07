@@ -161,9 +161,9 @@ export function createRenderer(options: RendererOptions) {
     // setup component
     const component = initialVNode.type as Component;
     if (component.setup) {
-      instance.render = component.setup(
-        instance.props
-      ) as InternalRenderFunction;
+      instance.render = component.setup(instance.props, {
+        emit: instance.emit,
+      }) as InternalRenderFunction;
     }
 
     // setup effect
