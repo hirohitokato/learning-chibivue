@@ -14,12 +14,12 @@ import { reactive } from "./reactive";
 export const mutableHandlers: ProxyHandler<object> = {
   get(target: object, key: string | symbol, receiver: object) {
     track(target, key);
-    const res = Reflect.get(target, key, receiver);
+    const result = Reflect.get(target, key, receiver);
     // objectの場合はreactiveにしてあげる (これにより、ネストしたオブジェクトもリアクティブにすることができます。)
-    if (res !== null && typeof res === "object") {
-      return reactive(res);
+    if (result !== null && typeof result === "object") {
+      return reactive(result);
     }
-    return res;
+    return result;
   },
 
   set(target: object, key: string | symbol, value: unknown, receiver: object) {
